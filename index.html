@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Superheroes</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>Superheroes</h1>
+      <div class="controls">
+        <input
+          id="global-search"
+          type="search"
+          placeholder="Search by name..."
+          autocomplete="off"
+          aria-label="Search heroes by name"
+        />
+        <select id="page-size" aria-label="Rows per page">
+          <option value="10">10</option>
+          <option value="20" selected>20</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="all">All</option>
+        </select>
+      </div>
+    </header>
+
+    <main>
+      <table id="heroes-table">
+        <thead>
+          <tr>
+            <th data-sort-key="images.xs">Icon</th>
+            <th data-sort-key="name">Name</th>
+            <th data-sort-key="biography.fullName">Full Name</th>
+            <th data-sort-key="powerstats.intelligence">Intelligence</th>
+            <th data-sort-key="powerstats.strength">Strength</th>
+            <th data-sort-key="powerstats.speed">Speed</th>
+            <th data-sort-key="powerstats.durability">Durability</th>
+            <th data-sort-key="powerstats.power">Power</th>
+            <th data-sort-key="powerstats.combat">Combat</th>
+            <th data-sort-key="appearance.race">Race</th>
+            <th data-sort-key="appearance.gender">Gender</th>
+            <th data-sort-key="appearance.height">Height</th>
+            <th data-sort-key="appearance.weight">Weight</th>
+            <th data-sort-key="biography.placeOfBirth">Place of Birth</th>
+            <th data-sort-key="biography.alignment">Alignment</th>
+          </tr>
+        </thead>
+        <tbody id="heroes-body"></tbody>
+      </table>
+
+      <nav id="pagination" class="pagination" aria-label="Pagination"></nav>
+    </main>
+
+    <script src="js/uiEngine.js"></script>
+  </body>
+</html>
