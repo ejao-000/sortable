@@ -6,6 +6,7 @@ The app fetches the complete [Superhero API](https://github.com/akabab/superhero
 
 > **Project:** Zone01 Kisumu — `sortable`
 > **Status:** Complete — all core requirements and all bonus features implemented.
+> **Live demo:** <https://ejao-000.github.io/sortable/>
 
 ---
 
@@ -148,6 +149,22 @@ There is nothing to install and nothing to build. The three source files are the
 | Table stays on "Scanning the multiverse…" | Check the browser console and your internet connection; the JSON is fetched from a remote CDN. |
 | Fonts look different | Google Fonts may be blocked; the app falls back to system fonts and still works. |
 | Images are missing | The API image CDN may be unavailable; broken icons show `N/A` without breaking the table. |
+
+### Live deployment
+
+The project is published with **GitHub Pages** from the root of the `main` branch:
+
+**<https://ejao-000.github.io/sortable/>**
+
+Any push to `main` automatically republishes the site. To deploy an update:
+
+```bash
+git add .
+git commit -m "your message"
+git push github main
+```
+
+No build step or deployment workflow is required.
 
 ---
 
