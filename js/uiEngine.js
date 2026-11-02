@@ -138,25 +138,50 @@ function isMissing(value) {
 function parseMeasure(value) {
   let target = value;
   if (Array.isArray(target)) {
+    // The dataset stores [imperial, metric]; prefer the metric entry.
+    const metric = target[1];
     target =
-      target.find((item) => typeof item === "string" && /(cm|kg)/i.test(item)) ||
-      target.find((item) => typeof item === "string" && /\d/.test(item));
+      typeof metric === "string" && /\d/.test(metric) && !isMissing(metric)
+        ? metric
+        : target.find(
+            (item) => typeof item === "string" && /\d/.test(item)
+          );
   }
   if (target === null || target === undefined) return null;
-  const cleaned = String(target).trim().toLowerCase();
-  if (
-    cleaned === "" ||
-    cleaned === "-" ||
-    cleaned === "null" ||
-    cleaned === "n/a" ||
-    cleaned === "0 cm" ||
-    cleaned === "0 kg"
-  ) {
-    return null;
+
+  const cleaned = String(target)
+    .trim()
+    .toLowerCase()
+    .replace(/,/g, "");
+  if (isMissing(cleaned)) return null;
+
+  // Feet/inches notation, e.g. 6'8" or 6'8.
+  const feetInches = cleaned.match(/(\d+)\s*['′]\s*(\d+(?:\.\d+)?)?/);
+  if (feetInches) {
+    const feet = parseInt(feetInches[1], 10);
+    const inches = parseFloat(feetInches[2] || "0");
+    const total = feet * 30.48 + inches * 2.54;
+    return total === 0 ? null : total;
   }
+
   const match = cleaned.match(/-?\d+(?:\.\d+)?/);
   if (!match) return null;
-  const number = parseFloat(match[0]);
+  let number = parseFloat(match[0]);
+  if (Number.isNaN(number)) return null;
+
+  // Normalise to cm (height) or kg (weight) so mixed units sort correctly.
+  const unit = cleaned.slice(match.index + match[0].length).trim();
+  if (/^(?:km|kilometers?|kilometres?)$/.test(unit)) number *= 100000;
+  else if (/^(?:m|meters?|metres?)$/.test(unit)) number *= 100;
+  else if (/^(?:cm|centimeters?|centimetres?)$/.test(unit)) number *= 1;
+  else if (/^(?:mm|millimeters?|millimetres?)$/.test(unit)) number *= 0.1;
+  else if (/^(?:t|tons?|tonnes?)$/.test(unit)) number *= 1000;
+  else if (/^(?:kg|kilograms?|kilogrammes?)$/.test(unit)) number *= 1;
+  else if (/^(?:g|grams?|grammes?)$/.test(unit)) number *= 0.001;
+  else if (/^(?:lb|lbs|pounds?)$/.test(unit)) number *= 0.453592;
+  else if (/^(?:ft|feet|foot)$/.test(unit)) number *= 30.48;
+  else if (/^(?:in|inch|inches)$/.test(unit)) number *= 2.54;
+
   return number === 0 ? null : number;
 }
 
@@ -679,7 +704,11 @@ function updateHeaderUI() {
   document.querySelectorAll("th.sortable").forEach((th) => {
     th.classList.remove("sort-asc", "sort-desc");
     if (th.dataset.sortKey === state.sortKey) {
-      th.classList.add(state.sortDirection === "asc" ? "sort-asc" : "sort-desc");
+      const ascending = state.sortDirection === "asc";
+      th.classList.add(ascending ? "sort-asc" : "sort-desc");
+      th.setAttribute("aria-sort", ascending ? "ascending" : "descending");
+    } else {
+      th.setAttribute("aria-sort", "none");
     }
   });
 }
@@ -1202,7 +1231,15 @@ function showError(error) {
 
 function bindEvents() {
   document.querySelectorAll("th.sortable").forEach((th) => {
+    th.tabIndex = 0;
+    th.setAttribute("role", "button");
     th.addEventListener("click", handleHeaderClick);
+    th.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        th.click();
+      }
+    });
   });
 
   const search = document.getElementById("global-search");
