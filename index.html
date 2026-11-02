@@ -3,6 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A villain-themed, vanilla JavaScript dashboard for searching, sorting, filtering, and inspecting the complete Superhero API dataset."
+    />
+    <meta name="theme-color" content="#05070f" />
+    <meta property="og:title" content="Superheroes — Villainous Intelligence Dashboard" />
+    <meta
+      property="og:description"
+      content="Search, sort, filter, and inspect 563 superhero records. Built with vanilla HTML, CSS, and JavaScript."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <title>Superheroes — Villainous Intelligence Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -94,6 +106,12 @@
           <select id="search-field" aria-label="Field to search">
             <option value="name" selected>Name</option>
             <option value="biography.fullName">Full Name</option>
+            <option value="powerstats.intelligence">Intelligence</option>
+            <option value="powerstats.strength">Strength</option>
+            <option value="powerstats.speed">Speed</option>
+            <option value="powerstats.durability">Durability</option>
+            <option value="powerstats.power">Power</option>
+            <option value="powerstats.combat">Combat</option>
             <option value="biography.placeOfBirth">Place of Birth</option>
             <option value="appearance.race">Race</option>
             <option value="appearance.gender">Gender</option>
@@ -162,54 +180,63 @@
       </section>
 
       <div class="results-bar">
-        <span id="results-info" class="results-info">Loading targets…</span>
+        <span id="results-info" class="results-info" aria-live="polite"
+          >Loading targets…</span
+        >
         <div id="active-filters" class="chips" aria-live="polite"></div>
       </div>
 
       <main class="table-panel">
         <div class="table-wrapper">
           <table id="heroes-table">
+            <caption class="visually-hidden">
+              Superhero intelligence table, sortable and searchable
+            </caption>
             <thead>
               <tr>
-                <th class="sortable col-icon" data-sort-key="images.xs">
+                <th
+                  class="sortable col-icon"
+                  scope="col"
+                  data-sort-key="images.xs"
+                >
                   Icon
                 </th>
-                <th class="sortable" data-sort-key="name">Name</th>
-                <th class="sortable" data-sort-key="biography.fullName">
+                <th class="sortable" scope="col" data-sort-key="name">Name</th>
+                <th class="sortable" scope="col" data-sort-key="biography.fullName">
                   Full Name
                 </th>
-                <th class="sortable num" data-sort-key="powerstats.intelligence">
+                <th class="sortable num" scope="col" data-sort-key="powerstats.intelligence">
                   Intelligence
                 </th>
-                <th class="sortable num" data-sort-key="powerstats.strength">
+                <th class="sortable num" scope="col" data-sort-key="powerstats.strength">
                   Strength
                 </th>
-                <th class="sortable num" data-sort-key="powerstats.speed">
+                <th class="sortable num" scope="col" data-sort-key="powerstats.speed">
                   Speed
                 </th>
-                <th class="sortable num" data-sort-key="powerstats.durability">
+                <th class="sortable num" scope="col" data-sort-key="powerstats.durability">
                   Durability
                 </th>
-                <th class="sortable num" data-sort-key="powerstats.power">
+                <th class="sortable num" scope="col" data-sort-key="powerstats.power">
                   Power
                 </th>
-                <th class="sortable num" data-sort-key="powerstats.combat">
+                <th class="sortable num" scope="col" data-sort-key="powerstats.combat">
                   Combat
                 </th>
-                <th class="sortable" data-sort-key="appearance.race">Race</th>
-                <th class="sortable" data-sort-key="appearance.gender">
+                <th class="sortable" scope="col" data-sort-key="appearance.race">Race</th>
+                <th class="sortable" scope="col" data-sort-key="appearance.gender">
                   Gender
                 </th>
-                <th class="sortable" data-sort-key="appearance.height">
+                <th class="sortable" scope="col" data-sort-key="appearance.height">
                   Height
                 </th>
-                <th class="sortable" data-sort-key="appearance.weight">
+                <th class="sortable" scope="col" data-sort-key="appearance.weight">
                   Weight
                 </th>
-                <th class="sortable" data-sort-key="biography.placeOfBirth">
+                <th class="sortable" scope="col" data-sort-key="biography.placeOfBirth">
                   Place of Birth
                 </th>
-                <th class="sortable" data-sort-key="biography.alignment">
+                <th class="sortable" scope="col" data-sort-key="biography.alignment">
                   Alignment
                 </th>
               </tr>

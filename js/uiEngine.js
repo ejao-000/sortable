@@ -48,6 +48,12 @@ const KEY_LABELS = COLUMNS.reduce((map, column) => {
 const FIELD_LABELS = {
   name: "Name",
   "biography.fullName": "Full Name",
+  "powerstats.intelligence": "Intelligence",
+  "powerstats.strength": "Strength",
+  "powerstats.speed": "Speed",
+  "powerstats.durability": "Durability",
+  "powerstats.power": "Power",
+  "powerstats.combat": "Combat",
   "biography.placeOfBirth": "Place of Birth",
   "appearance.race": "Race",
   "appearance.gender": "Gender",
@@ -109,6 +115,43 @@ function operatorsForField(field) {
   return FIELD_TYPE[field] === "number" ? OPERATORS.number : OPERATORS.text;
 }
 
+function normalizeSearchField(field) {
+  return Object.prototype.hasOwnProperty.call(FIELD_TYPE, field)
+    ? field
+    : "name";
+}
+
+function normalizeSearchOperator(field, operator) {
+  const operators = operatorsForField(field);
+  return operators.some((item) => item.value === operator)
+    ? operator
+    : operators[0].value;
+}
+
+function populateOperatorOptions(select, field, current) {
+  const operators = operatorsForField(field);
+  select.textContent = "";
+  operators.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.value;
+    option.textContent = item.label;
+    select.appendChild(option);
+  });
+  const value = normalizeSearchOperator(field, current);
+  select.value = value;
+  return value;
+}
+
+function syncMainOperators() {
+  const select = document.getElementById("search-operator");
+  if (!select) return;
+  state.searchOperator = populateOperatorOptions(
+    select,
+    state.searchField,
+    state.searchOperator
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
@@ -118,6 +161,20 @@ function getNestedValue(source, path) {
     if (value === null || value === undefined) return value;
     return value[part];
   }, source);
+}
+
+function escapeHTML(value) {
+  return String(value).replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character]
+  );
 }
 
 function isMissing(value) {
@@ -549,7 +606,10 @@ function renderPagination() {
       return;
     }
     const button = makeButton(String(page), page, false);
-    if (page === current) button.classList.add("active");
+    if (page === current) {
+      button.classList.add("active");
+      button.setAttribute("aria-current", "page");
+    }
     nav.append(button);
   });
 
@@ -571,10 +631,11 @@ function renderTable() {
   const start = (currentPage - 1) * pageSize;
   const end = start + pageSize;
 
-  tbody.textContent = "";
+  const fragment = document.createDocumentFragment();
   state.filtered.slice(start, end).forEach((hero) => {
-    tbody.appendChild(createRow(hero));
+    fragment.appendChild(createRow(hero));
   });
+  tbody.replaceChildren(fragment);
 
   toggleEmpty(state.filtered.length === 0);
   renderPagination();
@@ -661,21 +722,37 @@ function renderChips() {
     container.appendChild(
       createChip("in", FIELD_LABELS[state.searchField] || state.searchField, () => {
         state.searchField = "name";
-        syncControlsFromState();
-        recompute(true);
-      })
-    );
-  }
-
-  if (state.searchOperator !== "include") {
-    container.appendChild(
-      createChip("op", state.searchOperator, () => {
         state.searchOperator = "include";
         syncControlsFromState();
         recompute(true);
       })
     );
   }
+
+  if (
+    state.searchOperator !== operatorsForField(state.searchField)[0].value
+  ) {
+    container.appendChild(
+      createChip("op", state.searchOperator, () => {
+        state.searchOperator = operatorsForField(state.searchField)[0].value;
+        syncControlsFromState();
+        recompute(true);
+      })
+    );
+  }
+
+  state.conditions.forEach((condition) => {
+    if (!String(condition.value).trim()) return;
+    const fieldLabel =
+      FIELD_LABELS[condition.field] || KEY_LABELS[condition.field] || condition.field;
+    container.appendChild(
+      createChip(
+        `${fieldLabel} ${condition.operator}`,
+        condition.value,
+        () => removeCondition(condition.id)
+      )
+    );
+  });
 
   if (state.sortKey !== "name" || state.sortDirection !== "asc") {
     container.appendChild(
@@ -754,7 +831,8 @@ function handleSearchInput(event) {
 }
 
 function handleFieldChange(event) {
-  state.searchField = event.target.value;
+  state.searchField = normalizeSearchField(event.target.value);
+  syncMainOperators();
   recompute(true);
 }
 
@@ -778,6 +856,7 @@ function resetFilters() {
   state.searchOperator = "include";
   state.sortKey = "name";
   state.sortDirection = "asc";
+  state.pageSize = 20;
   state.currentPage = 1;
   clearConditions();
   syncControlsFromState();
@@ -789,6 +868,7 @@ function syncControlsFromState() {
   if (search) search.value = state.searchQuery;
   const field = document.getElementById("search-field");
   if (field) field.value = state.searchField;
+  syncMainOperators();
   const operator = document.getElementById("search-operator");
   if (operator) operator.value = state.searchOperator;
   const pageSize = document.getElementById("page-size");
@@ -1009,21 +1089,46 @@ function syncURL() {
 
 function readURL() {
   const params = new URLSearchParams(window.location.search);
-  const pageSize = params.get("size") || "20";
+
+  const searchField = normalizeSearchField(params.get("field") || "name");
+  const searchOperator = normalizeSearchOperator(
+    searchField,
+    params.get("operator") || operatorsForField(searchField)[0].value
+  );
+
+  const rawSize = params.get("size") || "20";
+  const pageSize =
+    rawSize === "all"
+      ? "all"
+      : ["10", "20", "50", "100"].includes(rawSize)
+      ? Number(rawSize)
+      : 20;
+
+  const rawSort = params.get("sort") || "name";
+  const sortKey = Object.prototype.hasOwnProperty.call(TYPE_BY_KEY, rawSort)
+    ? rawSort
+    : "name";
+
+  const rawPage = parseInt(params.get("page") || "1", 10);
+
   return {
     searchQuery: (params.get("search") || "").toLowerCase(),
-    searchField: params.get("field") || "name",
-    searchOperator: params.get("operator") || "include",
-    sortKey: params.get("sort") || "name",
+    searchField,
+    searchOperator,
+    sortKey,
     sortDirection: params.get("dir") === "desc" ? "desc" : "asc",
-    pageSize: pageSize === "all" ? "all" : Number(pageSize) || 20,
-    page: parseInt(params.get("page") || "1", 10) || 1,
+    pageSize,
+    page: Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1,
     activeHeroId: params.get("id") || null,
     conditions: params.getAll("f").map((raw) => {
       const [field, operator, ...rest] = raw.split("|");
+      const validField = normalizeSearchField(field);
       return {
-        field: FIELD_TYPE[field] ? field : "name",
-        operator: operator || "include",
+        field: validField,
+        operator: normalizeSearchOperator(
+          validField,
+          operator || operatorsForField(validField)[0].value
+        ),
         value: rest.join("|"),
       };
     }),
@@ -1066,8 +1171,8 @@ function formatFieldValue(value) {
 function detailItem(label, value) {
   return `
     <div class="detail-item">
-      <span class="detail-label">${label}</span>
-      <span class="detail-value">${formatFieldValue(value)}</span>
+      <span class="detail-label">${escapeHTML(label)}</span>
+      <span class="detail-value">${escapeHTML(formatFieldValue(value))}</span>
     </div>`;
 }
 
@@ -1075,17 +1180,23 @@ function detailSection(title, items) {
   if (!items.length) return "";
   return `
     <div class="profile-section">
-      <h3>${title}</h3>
+      <h3>${escapeHTML(title)}</h3>
       <div class="detail-grid">
         ${items.map(([label, value]) => detailItem(label, value)).join("")}
       </div>
     </div>`;
 }
 
+let lastFocusedElement = null;
+
 function openProfile(hero) {
   const modal = document.getElementById("profile-modal");
   const container = document.getElementById("modal-content");
   if (!modal || !container) return;
+
+  if (modal.classList.contains("hidden")) {
+    lastFocusedElement = document.activeElement;
+  }
 
   if (hero.id !== undefined && hero.id !== null) {
     state.activeHeroId = String(hero.id);
@@ -1105,7 +1216,7 @@ function openProfile(hero) {
           const pct = value === null ? 0 : Math.max(0, Math.min(100, value));
           return `
             <div class="stat-row">
-              <span class="stat-name">${name}</span>
+              <span class="stat-name">${escapeHTML(name)}</span>
               <span class="stat-track">
                 <span class="stat-fill level-${statLevel(value)}" style="width:${pct}%"></span>
               </span>
@@ -1149,13 +1260,20 @@ function openProfile(hero) {
 
   container.innerHTML = `
     <div class="profile-banner">
-      <img src="${image}" alt="${hero.name || "hero"}" class="profile-avatar" />
+      <img
+        src="${escapeHTML(image)}"
+        alt="${escapeHTML(hero.name || "hero")}"
+        class="profile-avatar"
+      />
       <div>
-        <h2>${hero.name || "Unknown"}</h2>
-        <p class="profile-id">Target #${hero.id ?? "?"} &middot; Record ${hero.slug || "n/a"}</p>
+        <h2>${escapeHTML(hero.name || "Unknown")}</h2>
+        <p class="profile-id">
+          Target #${escapeHTML(hero.id ?? "?")} &middot; Record
+          ${escapeHTML(hero.slug || "n/a")}
+        </p>
         <div class="profile-meta">
-          <span class="pill neutral">${publisher}</span>
-          <span class="pill ${alignmentClass(hero)}">${alignment}</span>
+          <span class="pill neutral">${escapeHTML(publisher)}</span>
+          <span class="pill ${alignmentClass(hero)}">${escapeHTML(alignment)}</span>
         </div>
       </div>
     </div>
@@ -1178,18 +1296,31 @@ function openProfile(hero) {
   const rawJson = container.querySelector(".raw-json");
   if (rawJson) rawJson.textContent = JSON.stringify(hero, null, 2);
 
+  const avatar = container.querySelector(".profile-avatar");
+  if (avatar) {
+    avatar.addEventListener("error", () => {
+      avatar.style.visibility = "hidden";
+    });
+  }
+
   modal.classList.remove("hidden");
   document.body.style.overflow = "hidden";
+  const closeButton = document.getElementById("modal-close");
+  if (closeButton) closeButton.focus();
   syncURL();
 }
 
 function closeProfile() {
   const modal = document.getElementById("profile-modal");
-  if (!modal) return;
+  if (!modal || modal.classList.contains("hidden")) return;
   modal.classList.add("hidden");
   document.body.style.overflow = "";
   state.activeHeroId = null;
   syncURL();
+  if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
+    lastFocusedElement.focus();
+  }
+  lastFocusedElement = null;
 }
 
 function openProfileById(id) {
@@ -1211,6 +1342,30 @@ async function loadHeroes() {
   return data;
 }
 
+const DEFAULT_EMPTY_STATE = `
+  <p class="empty-title">No targets found</p>
+  <p class="empty-sub">Try a different search term or reset the filters.</p>`;
+
+function restoreEmptyState() {
+  const empty = document.getElementById("table-empty");
+  if (empty) empty.innerHTML = DEFAULT_EMPTY_STATE;
+}
+
+async function retryLoad() {
+  toggleLoading(true);
+  toggleEmpty(false);
+  try {
+    const heroes = await loadHeroes();
+    state.heroes = heroes;
+    restoreEmptyState();
+    recompute(false);
+    toggleLoading(false);
+  } catch (error) {
+    console.error(error);
+    showError(error);
+  }
+}
+
 function showError(error) {
   toggleLoading(false);
   const empty = document.getElementById("table-empty");
@@ -1222,7 +1377,12 @@ function showError(error) {
     const sub = document.createElement("p");
     sub.className = "empty-sub";
     sub.textContent = error.message;
-    empty.append(title, sub);
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "btn small";
+    retry.textContent = "Retry";
+    retry.addEventListener("click", retryLoad);
+    empty.append(title, sub, retry);
   }
   const info = document.getElementById("results-info");
   if (info) info.textContent = "Could not load the hero dataset.";
@@ -1232,7 +1392,6 @@ function showError(error) {
 function bindEvents() {
   document.querySelectorAll("th.sortable").forEach((th) => {
     th.tabIndex = 0;
-    th.setAttribute("role", "button");
     th.addEventListener("click", handleHeaderClick);
     th.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {

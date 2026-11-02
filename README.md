@@ -59,17 +59,20 @@ Everything below documents how the team met those requirements and where each pi
 
 ### Bonus features
 
-- [x] **Search field selector** — restrict search to Name, Full Name, Place of Birth, Race, Gender, Alignment, Height, Weight, or search all text fields at once.
+- [x] **Search field selector** — restrict search to Name, Full Name, any of the six powerstats, Place of Birth, Race, Gender, Alignment, Height, Weight, or search all text fields at once.
 - [x] **Search operators**:
   - `include` — contains the text.
   - `exclude` — does not contain the text.
   - `fuzzy` — letters appear in order (e.g. `sprmn` matches `Superman`).
   - `= equal`, `!= not equal`, `> greater than`, `< lesser than` — numeric comparisons for stat, height, and weight fields.
+- [x] **Adaptive operator list** — text fields offer text operators; numeric fields automatically offer only `=`, `!=`, `>`, and `<`.
 - [x] **Advanced multi-condition filters** — combine any number of conditions with AND logic.
 - [x] **Hero detail view (dossier)** — click a row to open a full profile with a large image, biography, appearance, powerstats, work, connections, and the raw JSON record.
 - [x] **URL state persistence** — search, field, operator, sort, direction, page size, page number, advanced filters, and the open hero are stored in the URL and restored on reload or share.
 - [x] **Custom villain-themed UI** — dark neon dashboard, responsive layout, stat meters, alignment pills, loading spinner, empty states, and keyboard support.
-- [x] **Accessibility touches** — labelled controls, keyboard-operable sortable headers, `aria-sort`, focus styles, `Enter`/`Space` to open a row, and `Escape` to close the dossier.
+- [x] **Accessibility touches** — labelled controls, keyboard-operable sortable headers with `aria-sort`, a table caption, `aria-current` pagination, focus styles, focus moved into and restored from the dossier, `Enter`/`Space` to open a row, and `Escape` to close the dossier.
+- [x] **Resilient loading** — malformed or unsupported URL values fall back safely; a failed fetch shows a **Retry** button instead of a dead end.
+- [x] **Reset view** — one click restores the default search, sort, page, advanced filters, and page size (`20`).
 
 ---
 
@@ -153,6 +156,7 @@ There is nothing to install and nothing to build. The three source files are the
 ```text
 sortable/
 ├── index.html          # Page shell, toolbar, table skeleton, dossier modal
+├── favicon.svg         # Villain shield favicon
 ├── css/
 │   └── style.css       # Complete villain-themed responsive design
 ├── js/
@@ -235,15 +239,17 @@ The main search bar is live and case-insensitive. Its behaviour depends on the s
 
 | Operator | Text fields | Numeric fields (stats, height, weight) |
 | --- | --- | --- |
-| `include` | Contains the query | Contains the query as text |
-| `exclude` | Does not contain the query | Does not contain the query as text |
-| `fuzzy` | Letters appear in order | Letters appear in order |
+| `include` | Contains the query | Not offered |
+| `exclude` | Does not contain the query | Not offered |
+| `fuzzy` | Letters appear in order | Not offered |
 | `=` | Exact text match (falls back when the query is not numeric) | Numeric equality |
 | `!=` | Exact text mismatch | Numeric inequality |
-| `>` | No match | Greater than |
-| `<` | No match | Less than |
+| `>` | Not offered | Greater than |
+| `<` | Not offered | Less than |
 
-**Advanced filters** add any number of conditions. Every condition must match (**AND**). Each condition has its own field, operator, and value, and operators adapt automatically to the chosen field type. Empty condition values are ignored.
+Changing the search field rebuilds the operator dropdown for that field type, so text and numeric fields only show valid choices. Invalid `field`, `operator`, `sort`, `size`, or `page` values in a shared URL are normalised to safe defaults on load.
+
+**Advanced filters** add any number of conditions. Every condition must match (**AND**). Each condition has its own field, operator, and value, and operators adapt automatically to the chosen field type. Empty condition values are ignored. Active advanced filters also appear as removable chips above the table.
 
 ### 5. Pagination
 
@@ -411,15 +417,20 @@ Use this checklist to verify a fresh clone:
 - [ ] Page-size selector offers `10`, `20`, `50`, `100`, `All`; default is `20`.
 - [ ] Typing `man` in search filters names immediately and shows `48` matches.
 - [ ] Searching `200` with field **Height** and operator **>** returns only taller heroes.
+- [ ] Selecting a numeric field changes the operator list to `=`, `!=`, `>`, `<` only.
+- [ ] Searching `90` with field **Strength** and operator **>** returns only heroes above 90.
 - [ ] Sorting by **Weight** ascending places `78 kg` (Clock King) before `99 kg` (Cottonmouth) and `101 kg` (Atlas).
 - [ ] Sorting by **Height** descending places `304.8 meters` above `108.0 meters`.
 - [ ] Heroes with missing values appear last in both ascending and descending order.
 - [ ] Clicking a column header sorts ascending; clicking again reverses it.
 - [ ] Pagination First / Prev / Next / Last and page numbers work.
-- [ ] Advanced filters combine with AND logic.
+- [ ] Advanced filters combine with AND logic and appear as removable chips.
+- [ ] Clicking **Reset** restores the default view, including the `20`-row page size.
 - [ ] Clicking a row opens the dossier with a large image and full details.
+- [ ] Focus moves to the close button when the dossier opens and returns to the table row when it closes.
 - [ ] `Escape` closes the dossier.
 - [ ] Reloading a URL with search, sort, filter, page, and `id` restores the same view.
+- [ ] A malformed URL (for example `?sort=constructor&field=unknown&size=25&page=-1`) loads safely with defaults.
 - [ ] Layout remains usable on a narrow mobile viewport.
 - [ ] No console errors.
 
